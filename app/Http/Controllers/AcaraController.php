@@ -2,9 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Acara;
-use Illumintate\Support\Facedes\DB;
+use Illuminate\Http\Request;
 
 class AcaraController extends Controller
 {
@@ -15,6 +14,7 @@ class AcaraController extends Controller
     {
         // Tampilkan semua acara, diurutkan berdasarkan tanggal terbaru
         $acaras = Acara::latest()->paginate(10);
+
         return view('acara.index', compact('acaras'));
     }
 
@@ -33,13 +33,10 @@ class AcaraController extends Controller
     {
         // 1. Validasi Input
         $request->validate([
-            'nama_acara' => 'required|string|max:255',
-            'tanggal' => 'required|date',
-            'waktu_mulai' => 'required|date_format:H:i',
-            'waktu_selesai' => 'nullable|date_format:H:i|after:waktu_mulai',
-            'tempat' => 'required|string|max:255',
-            'alamat_lengkap' => 'nullable|string',
-            'status' => 'required|in:Aktif,Tidak Aktif', // Status Acara
+            'nama_mempelai' => 'required|string|max:255',
+            'waktu_acara' => 'required|date',
+            'lokasi' => 'nullable|string',
+            'deskripsi' => 'required|string|max:255',
         ]);
 
         // 2. Simpan data
@@ -72,13 +69,10 @@ class AcaraController extends Controller
     {
         // 1. Validasi Input
         $request->validate([
-            'nama_acara' => 'required|string|max:255',
-            'tanggal' => 'required|date',
-            'waktu_mulai' => 'required|date_format:H:i',
-            'waktu_selesai' => 'nullable|date_format:H:i|after:waktu_mulai',
-            'tempat' => 'required|string|max:255',
-            'alamat_lengkap' => 'nullable|string',
-            'status' => 'required|in:Aktif,Tidak Aktif', 
+            'nama_mempelai' => 'required|string|max:255',
+            'waktu_acara' => 'required|date',
+            'lokasi' => 'nullable|string',
+            'deskripsi' => 'required|string|max:255',
         ]);
 
         // 2. Update data
@@ -95,12 +89,13 @@ class AcaraController extends Controller
     {
         // Sebelum menghapus acara, kita harus memastikan tidak ada Tamu yang terikat
         // Di sini kita cek apakah ada Tamu yang acara_id-nya merujuk ke acara ini
-        if ($acara->tamus()->count() > 0) {
+        if ($acara->tamu()->count() > 0) {
             return redirect()->route('acara.index')->with('error', 'Gagal menghapus acara. Masih ada tamu yang terdaftar di acara ini.');
         }
 
         try {
             $acara->delete();
+
             return redirect()->route('acara.index')->with('success', 'Acara berhasil dihapus!');
         } catch (\Exception $e) {
             return redirect()->route('acara.index')->with('error', 'Gagal menghapus acara. Terjadi kesalahan.');

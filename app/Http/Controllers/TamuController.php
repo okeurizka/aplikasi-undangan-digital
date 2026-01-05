@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Tamu;
-use App\Models\Acara; // Diperlukan saat create/edit untuk dropdown
-use App\Models\KehadiranRsvp; // Diperlukan untuk menghapus data terkait
+use App\Models\Acara;
+use App\Models\KehadiranRsvp; // Diperlukan saat create/edit untuk dropdown
+use App\Models\Tamu; // Diperlukan untuk menghapus data terkait
 use Illuminate\Http\Request;
-use Illuminate\Support\Str; // Diperlukan untuk generate kode unik
-use SimpleSoftwareIO\QrCode\Facades\QrCode; // Diperlukan untuk generate QR Code
-use Illuminate\Support\Facades\DB; // Diperlukan untuk transaksi (opsional, tapi disarankan)
+use Illuminate\Support\Facades\DB; // Diperlukan untuk generate kode unik
+// Diperlukan untuk generate QR Code
+use Illuminate\Support\Str; // Diperlukan untuk transaksi (opsional, tapi disarankan)
 
 class TamuController extends Controller
 {
@@ -18,10 +18,10 @@ class TamuController extends Controller
     public function index()
     {
         // Ambil semua data tamu, dengan eager loading ke model Acara
-        $tamus = Tamu::with('acara')->latest()->paginate(10); 
-        
+        $tamus = Tamu::with('acara')->latest()->paginate(10);
+
         // Ambil data acara untuk dropdown filter atau tampilan
-        $acaras = Acara::all(); 
+        $acaras = Acara::all();
 
         return view('tamu.index', compact('tamus', 'acaras'));
     }
@@ -33,6 +33,7 @@ class TamuController extends Controller
     {
         // Ambil daftar acara yang aktif untuk dipilih di form
         $acaras = Acara::where('status', 'Aktif')->get();
+
         return view('tamu.create', compact('acaras'));
     }
 
@@ -43,12 +44,11 @@ class TamuController extends Controller
     {
         // 1. Validasi Input
         $request->validate([
-            'nama' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255|unique:tamus,email',
-            'no_hp' => 'nullable|string|max:20',
+            'nama_tamu' => 'required|string|max:255',
             'alamat' => 'nullable|string|max:255',
-            'acara_id' => 'required|exists:acaras,id', // Pastikan acara_id valid
-            'kategori' => 'required|string|in:VIP,Umum,Keluarga', 
+            'kode_unik' => 'nullable|uuid|unique:tamus,kode_unik',
+            'qr_code_string' => 'nullable|string|unique:tamus,qr_code_string',
+            'status_undangan' => 'required|in:Diundang,RSVP Confirmed,RSVP Declined,Canceled',
         ]);
 
         // 2. Generate Kode Unik Tamu (Dipakai buat URL Undangan & QR Code)
@@ -56,13 +56,12 @@ class TamuController extends Controller
 
         // 3. Simpan data
         Tamu::create([
-            'nama' => $request->nama,
-            'email' => $request->email,
-            'no_hp' => $request->no_hp,
+            'nama_tamu' => $request->nama_tamu,
             'alamat' => $request->alamat,
-            'acara_id' => $request->acara_id,
-            'kategori' => $request->kategori,
             'kode_unik' => $kode_unik,
+            'qr_code_string' => $kode_unik, // Sementara samain dengan kode_unik
+            'status_undangan' => $request->status_undangan,
+            'acara_id' => $request->acara_id,
         ]);
 
         return redirect()->route('tamu.index')->with('success', 'Data tamu berhasil ditambahkan!');
@@ -81,7 +80,9 @@ class TamuController extends Controller
      */
     public function edit(string $id)
     {
+        $tamu = Tamu::findOrFail($id); // Ambil data tamu berdasarkan ID
         $acaras = Acara::where('status', 'Aktif')->get();
+
         return view('tamu.edit', compact('tamu', 'acaras'));
     }
 
@@ -92,12 +93,11 @@ class TamuController extends Controller
     {
         // 1. Validasi Input
         $request->validate([
-            'nama' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255|unique:tamus,email,' . $tamu->id,
-            'no_hp' => 'nullable|string|max:20',
+            'nama_tamu' => 'required|string|max:255',
             'alamat' => 'nullable|string|max:255',
-            'acara_id' => 'required|exists:acaras,id',
-            'kategori' => 'required|string|in:VIP,Umum,Keluarga',
+            'kode_unik' => 'nullable|uuid|unique:tamus,kode_unik',
+            'qr_code_string' => 'nullable|string|unique:tamus,qr_code_string',
+            'status_undangan' => 'required|in:Diundang,RSVP Confirmed,RSVP Declined,Canceled',
         ]);
 
         // 2. Update data
@@ -119,18 +119,20 @@ class TamuController extends Controller
 
             // Hapus data Kehadiran/RSVP yang terkait dengan tamu ini
             KehadiranRsvp::where('tamu_id', $tamu->id)->delete();
-            
+
             // Hapus Log Check-in terkait (jika ada)
             // Asumsi: Lo punya model LogCheckin, kalau belum ada, hapus baris ini dulu
-            // LogCheckin::where('tamu_id', $tamu->id)->delete(); 
+            // LogCheckin::where('tamu_id', $tamu->id)->delete();
 
             $tamu->delete();
-            
+
             DB::commit();
+
             return redirect()->route('tamu.index')->with('success', 'Data tamu dan data terkait berhasil dihapus!');
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return redirect()->route('tamu.index')->with('error', 'Gagal menghapus tamu. Terjadi kesalahan database.');
         }
     }

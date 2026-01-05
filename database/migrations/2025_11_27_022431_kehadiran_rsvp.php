@@ -11,9 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        schema::create('kehadiran_rsvp', function (Blueprint $table) {
+        Schema::create('kehadiran_rsvp', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('tamu_id')->constrained('tamu')->onDelete('cascade'); 
+            $table->foreignId('tamu_id')->constrained('tamu')->onDelete('cascade');
             $table->enum('status_kehadiran', ['Hadir', 'Tidak Hadir'])->default('Hadir');
             $table->integer('jumlah_orang');
             $table->text('ucapan_doa');
