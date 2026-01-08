@@ -59,6 +59,8 @@ class AcaraController extends Controller
      */
     public function edit(string $id)
     {
+        $acara = Acara::findOrFail($id);
+
         return view('acara.edit', compact('acara'));
     }
 

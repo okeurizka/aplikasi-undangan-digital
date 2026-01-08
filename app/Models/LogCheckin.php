@@ -10,9 +10,11 @@ class LogCheckin extends Model
     use HasFactory;
 
     protected $table = 'log_checkin';
+
     protected $fillable = [
         'tamu_id',
-        'petugas_id',   
+        'acara_id',
+        'petugas_id',
         'waktu_scan',
     ];
 

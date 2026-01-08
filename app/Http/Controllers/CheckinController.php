@@ -5,9 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Acara;
 use App\Models\LogCheckin; // Untuk mencari Tamu berdasarkan kode unik
 use App\Models\Tamu; // Untuk menyimpan log check-in
-use Illuminate\Http\Request; // Untuk menampilkan acara aktif di halaman scanner
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use Carbon\Carbon; // Untuk menampilkan acara aktif di halaman scanner
+use Illuminate\Http\Request; // Untuk mencatat waktu check-in
 
 class CheckinController extends Controller
 {
@@ -31,60 +30,32 @@ class CheckinController extends Controller
      */
     public function checkin(Request $request)
     {
-        // 1. Validasi Input
         $request->validate([
-            'kode_unik' => 'required', // UUID formatnya string unik
+            'kode_unik' => 'required',
         ]);
 
-        $kode_unik = $request->kode_unik;
+        $tamu = Tamu::where('kode_unik', $request->kode_unik)->first();
 
-        // 2. Cari Tamu pakai STORED PROCEDURE (Sesuai instruksi soal)
-        // Kita panggil procedure yang udah kita buat di migration tadi
-        $results = DB::select('CALL sp_validasi_qr(?)', [$kode_unik]);
-
-        // Karena DB::select balikinnya array, kita ambil index ke-0
-        $tamu = ! empty($results) ? $results[0] : null;
-
-        // Cek 1: Tamu tidak ditemukan
         if (! $tamu) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'QR Code tidak valid atau Tamu tidak terdaftar.',
-            ], 404);
+            return response()->json(['success' => false, 'message' => 'Tamu tidak terdaftar!'], 404);
         }
 
-        // Cek 2: Cek apakah Tamu sudah pernah check-in
-        // Tips: Karena hasil Stored Procedure itu stdClass, aksesnya pakai ->
-        $sudahCheckin = LogCheckin::where('tamu_id', $tamu->id)
-            ->exists();
-
+        $sudahCheckin = LogCheckin::where('tamu_id', $tamu->id)->exists();
         if ($sudahCheckin) {
-            return response()->json([
-                'status' => 'warning',
-                'message' => 'Tamu a/n '.$tamu->nama_tamu.' sudah Check-in sebelumnya.',
-                'tamu' => $tamu,
-            ], 409);
+            return response()->json(['success' => false, 'message' => 'Tamu '.$tamu->nama_tamu.' sudah masuk sebelumnya.'], 400);
         }
 
-        // 3. Simpan Log Check-in
-        try {
-            LogCheckin::create([
-                'tamu_id' => $tamu->id,
-                'petugas_id' => Auth::id(),
-                'waktu_scan' => now(), // Sesuaikan nama kolom di migration lo
-            ]);
+        // SIMPAN DATA (Sesuaikan sama tabel lo yang nggak punya acara_id)
+        LogCheckin::create([
+            'tamu_id' => $tamu->id,
+            'petugas_id' => auth()->id(), // Ngambil ID petugas/admin yang login
+            'waktu_scan' => Carbon::now(),
+        ]);
 
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Check-in '.$tamu->nama_tamu.' Berhasil!',
-                'tamu' => $tamu,
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Gagal simpan data: '.$e->getMessage(),
-            ], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'message' => 'Berhasil! Selamat datang '.$tamu->nama_tamu,
+            'nama' => $tamu->nama_tamu,
+        ]);
     }
 }

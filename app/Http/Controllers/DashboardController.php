@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Acara; 
-use App\Models\Tamu; 
-use App\Models\KehadiranRsvp; 
-use App\Models\LogCheckin; 
-use Illuminate\Support\Facades\Auth; 
+use App\Models\Acara;
+use App\Models\KehadiranRsvp;
+use App\Models\Tamu;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB; // WAJIB ADA buat manggil Procedure
 
 class DashboardController extends Controller
 {
@@ -16,41 +15,28 @@ class DashboardController extends Controller
         $user = Auth::user();
         $role = $user->role;
 
-        // Ambil data statistik umum (diperlukan oleh Admin dan Petugas)
-        $totalTamu = Tamu::count(); 
+        // Data statistik umum
+        $totalTamu = Tamu::count();
         $totalRsvpConfirmed = KehadiranRsvp::where('status_kehadiran', 'Hadir')->count();
-        // Hitung tamu unik yang sudah check-in
-        $totalCheckin = LogCheckin::distinct('tamu_id')->count('tamu_id'); 
 
-        // Tentukan view dan data spesifik berdasarkan role
+        // --- POLESAN: Pakai Stored Procedure sp_rekap_kehadiran ---
+        $rekap = DB::select('CALL sp_rekap_kehadiran()');
+        $totalCheckin = ! empty($rekap) ? $rekap[0]->total_hadir : 0;
+
+        $data = [
+            'totalTamu' => $totalTamu,
+            'totalRsvpConfirmed' => $totalRsvpConfirmed,
+            'totalCheckin' => $totalCheckin,
+        ];
+
         if ($role === 'Administrator') {
-            // Data spesifik Admin (contoh: Total Acara)
-            $totalAcara = Acara::count();
+            $data['totalAcara'] = Acara::count();
 
-            $data = [
-                'totalAcara' => $totalAcara,
-                'totalTamu' => $totalTamu,
-                'totalRsvpConfirmed' => $totalRsvpConfirmed,
-                'totalCheckin' => $totalCheckin,
-            ];
-            
-            // Redirect ke view Admin (perlu dibuat: resources/views/dashboard/admin.blade.php)
-            return view('dashboard.admin', $data); 
-
+            return view('dashboard.admin', $data);
         } elseif ($role === 'Petugas') {
-            // Data spesifik Petugas (biasanya sama dengan Admin, tanpa Acara)
-            $data = [
-                'totalTamu' => $totalTamu,
-                'totalRsvpConfirmed' => $totalRsvpConfirmed,
-                'totalCheckin' => $totalCheckin,
-            ];
-            
-            // Redirect ke view Petugas (perlu dibuat: resources/views/dashboard/petugas.blade.php)
             return view('dashboard.petugas', $data);
-
-        } else {
-            // Harusnya ini gak perlu karena udah dicek di RoleMiddleware, tapi untuk safety
-            return abort(403, 'Akses Ditolak.');
         }
+
+        return abort(403, 'Akses Ditolak.');
     }
 }

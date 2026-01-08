@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Acara;
-use App\Models\KehadiranRsvp; // Diperlukan saat create/edit untuk dropdown
+use App\Models\KehadiranRSVP; // Diperlukan untuk menghapus data terkait
 use App\Models\Tamu; // Diperlukan untuk menghapus data terkait
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB; // Diperlukan untuk generate kode unik
@@ -17,10 +17,8 @@ class TamuController extends Controller
      */
     public function index()
     {
-        // Ambil semua data tamu, dengan eager loading ke model Acara
+        // Pastikan variabelnya $tamus (pake 's' di akhir) sesuai view tadi
         $tamus = Tamu::with('acara')->latest()->paginate(10);
-
-        // Ambil data acara untuk dropdown filter atau tampilan
         $acaras = Acara::all();
 
         return view('tamu.index', compact('tamus', 'acaras'));
@@ -32,7 +30,7 @@ class TamuController extends Controller
     public function create()
     {
         // Ambil daftar acara yang aktif untuk dipilih di form
-        $acaras = Acara::where('status', 'Aktif')->get();
+        $acaras = Acara::all();
 
         return view('tamu.create', compact('acaras'));
     }
@@ -44,6 +42,7 @@ class TamuController extends Controller
     {
         // 1. Validasi Input
         $request->validate([
+            'acara_id' => 'required|exists:acara,id',
             'nama_tamu' => 'required|string|max:255',
             'alamat' => 'nullable|string|max:255',
             'kode_unik' => 'nullable|uuid|unique:tamus,kode_unik',
@@ -81,7 +80,7 @@ class TamuController extends Controller
     public function edit(string $id)
     {
         $tamu = Tamu::findOrFail($id); // Ambil data tamu berdasarkan ID
-        $acaras = Acara::where('status', 'Aktif')->get();
+        $acaras = Acara::all();
 
         return view('tamu.edit', compact('tamu', 'acaras'));
     }
@@ -93,6 +92,7 @@ class TamuController extends Controller
     {
         // 1. Validasi Input
         $request->validate([
+            'acara_id' => 'required|exists:acara,id',
             'nama_tamu' => 'required|string|max:255',
             'alamat' => 'nullable|string|max:255',
             'kode_unik' => 'nullable|uuid|unique:tamus,kode_unik',
@@ -135,5 +135,56 @@ class TamuController extends Controller
 
             return redirect()->route('tamu.index')->with('error', 'Gagal menghapus tamu. Terjadi kesalahan database.');
         }
+    }
+
+    /**
+     * POLESAN: Lihat Undangan (Frontend buat Tamu)
+     * Diakses lewat route: /u/{kode_unik}
+     */
+    public function showUndangan($kode_unik)
+    {
+        // Cari tamu berdasarkan UUID kode_unik
+        $tamu = Tamu::where('kode_unik', $kode_unik)->with('acara')->firstOrFail();
+
+        // Ambil semua ucapan buat ditampilin di undangan (Wish list)
+        $wishes = KehadiranRSVP::whereNotNull('ucapan_doa')->latest()->get();
+
+        return view('frontend.undangan', compact('tamu', 'wishes'));
+    }
+
+    /**
+     * POLESAN: Input RSVP & Ucapan (Wishes)
+     */
+    public function submitRsvp(Request $request, $tamu_id)
+    {
+        $request->validate([
+            'status_kehadiran' => 'required|in:Hadir,Tidak Hadir',
+            'jumlah_orang' => 'required|integer|min:1',
+            'ucapan_doa' => 'nullable|string|max:500',
+        ]);
+
+        // Simpan atau update konfirmasi kehadiran
+        KehadiranRSVP::updateOrCreate(
+            ['tamu_id' => $tamu_id],
+            [
+                'status_kehadiran' => $request->status_kehadiran,
+                'jumlah_orang' => $request->jumlah_orang,
+                'ucapan_doa' => $request->ucapan_doa,
+                'waktu_input' => now(),
+            ]
+        );
+
+        return back()->with('success', 'Konfirmasi berhasil dikirim. Makasih ya!');
+    }
+
+    /**
+     * POLESAN: Halaman Generate QR & Link buat Admin
+     */
+    public function generateQr(Tamu $tamu)
+    {
+        // Link undangan yang bakal jadi isi QR Code
+        $urlUndangan = route('undangan.show', $tamu->kode_unik);
+
+        return view('tamu.qrcode', compact('tamu', 'urlUndangan'));
     }
 }

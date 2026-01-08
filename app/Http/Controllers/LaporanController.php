@@ -2,74 +2,59 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Acara;
+use App\Models\KehadiranRsvp;
+use App\Models\LogCheckin;
+use App\Models\Tamu;
 use Illuminate\Http\Request;
-use App\Models\Acara; // Model Acara untuk pilihan filter
-use App\Models\Tamu; // Model Tamu
-use App\Models\LogCheckin; // Model Log Check-in
-use App\Models\KehadiranRsvp; // Model RSVP
 
 class LaporanController extends Controller
 {
-    /**
-     * Tampilkan halaman utama Laporan Rekapitulasi Kehadiran.
-     * Diakses oleh: Administrator dan Petugas.
-     */
     public function index(Request $request)
     {
-        // 1. Ambil semua acara untuk dropdown filter
-        $acaras = Acara::orderBy('tanggal', 'desc')->get();
-        
-        // Tentukan acara yang sedang dipilih (default: acara yang paling baru)
+        // Gunakan 'waktu_acara' sesuai migration kita sebelumnya
+        $acaras = Acara::orderBy('waktu_acara', 'desc')->get();
+
         $selectedAcaraId = $request->input('acara_id', $acaras->first()->id ?? null);
 
-        // 2. Ambil data tamu berdasarkan acara yang dipilih
-        $query = Tamu::with(['acara', 'rsvp', 'logCheckin'])
-                     ->where('acara_id', $selectedAcaraId)
-                     ->latest();
+        $query = Tamu::with(['acara', 'rsvp', 'logCheckins'])
+            ->where('acara_id', $selectedAcaraId)
+            ->latest();
 
         $tamus = $query->paginate(20);
 
-        // 3. Hitung Rekapitulasi Status Kehadiran untuk acara yang dipilih
         $rekap = $this->hitungRekapitulasi($selectedAcaraId);
-        
-        // 4. Kirim data ke view
+
         return view('laporan.index', compact('tamus', 'acaras', 'selectedAcaraId', 'rekap'));
     }
 
-    /**
-     * Fungsi internal untuk menghitung rekapitulasi status kehadiran.
-     * @param int $acaraId ID Acara yang dihitung.
-     * @return array
-     */
     private function hitungRekapitulasi($acaraId)
     {
-        if (!$acaraId) {
+        if (! $acaraId) {
             return [
-                'total_tamu' => 0,
-                'rsvp_hadir' => 0,
-                'rsvp_tidak_hadir' => 0,
-                'tamu_checkin' => 0,
-                'persentase_checkin' => 0,
+                'total_tamu' => 0, 'rsvp_hadir' => 0, 'rsvp_tidak_hadir' => 0,
+                'tamu_checkin' => 0, 'persentase_checkin' => 0,
             ];
         }
 
+        // 1. Total Tamu (Ini aman karena di tabel tamu ada acara_id)
         $totalTamu = Tamu::where('acara_id', $acaraId)->count();
-        
-        // Hitung status RSVP (Hadir/Tidak Hadir/Belum Pasti)
-        $rsvpHadir = KehadiranRsvp::where('acara_id', $acaraId)
-                                  ->where('status_kehadiran', 'Hadir')
-                                  ->count();
-                                  
-        $rsvpTidakHadir = KehadiranRsvp::where('acara_id', $acaraId)
-                                       ->where('status_kehadiran', 'Tidak Hadir')
-                                       ->count();
 
-        // Hitung jumlah tamu yang sudah benar-benar check-in
-        $tamuCheckin = LogCheckin::where('acara_id', $acaraId)
-                                 ->distinct('tamu_id')
-                                 ->count('tamu_id');
-        
-        // Hitung persentase check-in
+        // 2. Hitung RSVP Hadir
+        $rsvpHadir = KehadiranRsvp::whereHas('tamu', function ($q) use ($acaraId) {
+            $q->where('acara_id', $acaraId);
+        })->where('status_kehadiran', 'Hadir')->count();
+
+        // 3. Hitung RSVP Tidak Hadir
+        $rsvpTidakHadir = KehadiranRsvp::whereHas('tamu', function ($q) use ($acaraId) {
+            $q->where('acara_id', $acaraId);
+        })->where('status_kehadiran', 'Tidak Hadir')->count();
+
+        // 4. Hitung Tamu yang Check-in (Pake whereHas karena acara_id ada di tabel tamu)
+        $tamuCheckin = LogCheckin::whereHas('tamu', function ($q) use ($acaraId) {
+            $q->where('acara_id', $acaraId);
+        })->distinct('tamu_id')->count('tamu_id');
+
         $persentaseCheckin = $totalTamu > 0 ? round(($tamuCheckin / $totalTamu) * 100, 2) : 0;
 
         return [

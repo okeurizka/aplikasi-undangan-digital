@@ -10,6 +10,7 @@ class Tamu extends Model
     use HasFactory;
 
     protected $table = 'tamu';
+
     protected $fillable = [
         'acara_id',
         'nama_tamu',
@@ -28,10 +29,11 @@ class Tamu extends Model
         return $this->belongsTo(Acara::class, 'acara_id');
     }
 
-    public function kehadiranRsvp()
+    public function rsvp()
     {
         return $this->hasOne(KehadiranRsvp::class, 'tamu_id');
     }
+
     public function logCheckins()
     {
         return $this->hasMany(LogCheckin::class, 'tamu_id');
