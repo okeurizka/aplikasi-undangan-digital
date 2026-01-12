@@ -7,7 +7,6 @@ use App\Models\KehadiranRSVP; // Diperlukan untuk menghapus data terkait
 use App\Models\Tamu; // Diperlukan untuk menghapus data terkait
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB; // Diperlukan untuk generate kode unik
-// Diperlukan untuk generate QR Code
 use Illuminate\Support\Str; // Diperlukan untuk transaksi (opsional, tapi disarankan)
 
 class TamuController extends Controller
@@ -15,10 +14,23 @@ class TamuController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        // Pastikan variabelnya $tamus (pake 's' di akhir) sesuai view tadi
-        $tamus = Tamu::with('acara')->latest()->paginate(10);
+        $search = $request->input('search');
+        $acara_id = $request->input('acara_id');
+
+        $tamus = Tamu::with('acara')
+            ->when($search, function ($query) use ($search) {
+                $query->where('nama_tamu', 'like', '%'.$search.'%');
+            })
+            ->when($acara_id, function ($query) use ($acara_id) {
+                $query->where('acara_id', $acara_id);
+            })
+            ->latest()
+            ->paginate(10);
+
+        $tamus->appends($request->all());
+
         $acaras = Acara::all();
 
         return view('tamu.index', compact('tamus', 'acaras'));

@@ -53,4 +53,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(LogCheckin::class, 'petugas_id');
     }
+
+    public function acara()
+    {
+        return $this->belongsTo(Acara::class, foreignKey: 'petugas_id');
+    }
 }

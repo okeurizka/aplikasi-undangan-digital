@@ -13,6 +13,8 @@ return new class extends Migration
     {
         Schema::create('acara', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('petugas_id');
+            $table->foreign('petugas_id')->references('id')->on('users')->onDelete('cascade');
             $table->string('nama_mempelai');
             $table->dateTime('waktu_acara');
             $table->string('lokasi');

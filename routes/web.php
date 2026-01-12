@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 
 // --- FRONTEND (Tamu Undangan) ---
 Route::get('/', function () {
-    return view('welcome');
+    return view(view: 'auth.login');
 });
 
 // Route buat undangan (Contoh: /u/uuid-kode-unik)

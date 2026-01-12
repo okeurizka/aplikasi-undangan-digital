@@ -10,10 +10,19 @@ class AcaraController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        // Tampilkan semua acara, diurutkan berdasarkan tanggal terbaru
-        $acaras = Acara::latest()->paginate(10);
+        $search = $request->input('search');
+
+        $acaras = Acara::query()
+            ->when($search, function ($query) use ($search) {
+                $query->where('nama_mempelai', 'like', '%'.$search.'%')
+                    ->orWhere('lokasi', 'like', '%'.$search.'%');
+            })
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        $acaras->appends($request->all());
 
         return view('acara.index', compact('acaras'));
     }
@@ -37,6 +46,7 @@ class AcaraController extends Controller
             'waktu_acara' => 'required|date',
             'lokasi' => 'nullable|string',
             'deskripsi' => 'required|string|max:255',
+            'petugas_id' => 'required|exists:petugas,id',
         ]);
 
         // 2. Simpan data

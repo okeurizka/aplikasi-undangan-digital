@@ -10,11 +10,13 @@ class Acara extends Model
     use HasFactory;
 
     protected $table = 'acara';
+
     protected $fillable = [
         'nama_mempelai',
         'waktu_acara',
         'lokasi',
         'deskripsi',
+        'petugas_id',
     ];
 
     protected $casts = [
@@ -24,5 +26,10 @@ class Acara extends Model
     public function tamu()
     {
         return $this->hasMany(Tamu::class, 'acara_id');
+    }
+
+    public function petugas()
+    {
+        return $this->belongsTo(User::class, 'petugas_id');
     }
 }

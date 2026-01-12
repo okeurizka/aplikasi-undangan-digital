@@ -10,6 +10,37 @@
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                <div class="bg-white mb-4 rounded-t-lg shadow-sm border-b">
+                    <form action="{{ route('tamu.index') }}" method="GET" class="flex flex-col md:flex-row gap-4">
+                        <div class="flex-1">
+                            <input type="text" name="search" value="{{ request('search') }}"
+                                placeholder="Cari nama tamu..."
+                                class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div class="w-full md:w-64">
+                            <select name="acara_id"
+                                class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="">-- Semua Acara --</option>
+                                @foreach ($acaras as $acara)
+                                    <option value="{{ $acara->id }}"
+                                        {{ request('acara_id') == $acara->id ? 'selected' : '' }}>
+                                        {{ $acara->nama_mempelai }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <button type="submit"
+                            class="bg-gray-800 text-white px-6 py-2 rounded-md hover:bg-black transition">
+                            Cari
+                        </button>
+                        @if (request('search') || request('acara_id'))
+                            <a href="{{ route('tamu.index') }}"
+                                class="text-red-500 text-sm flex items-center hover:underline">
+                                Reset
+                            </a>
+                        @endif
+                    </form>
+                </div>
                 <table class="w-full text-left">
                     <thead>
                         <tr class="border-b text-gray-600 text-sm">
