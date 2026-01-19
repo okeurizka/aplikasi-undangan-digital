@@ -28,7 +28,7 @@ Route::middleware(['auth'])->group(function () {
     // ==========================================================
     Route::middleware(['role:Administrator'])->group(function () {
         Route::resource('tamu', TamuController::class)->except(['show']);
-        Route::resource('acara', AcaraController::class)->except(['show']);
+        Route::resource('acara', AcaraController::class);
 
         // Route buat generate QR (kalau mau dibikin tombol khusus)
         Route::get('/tamu/{tamu}/generate-qr', [TamuController::class, 'generateQr'])->name('tamu.generateQr');

@@ -17,13 +17,9 @@
 
                     {{-- 2. MENU ADMINISTRATOR ONLY --}}
                     @if (Auth::user()->role == 'Administrator')
-                        {{-- Manajemen Data Tamu (CRUD) --}}
-                        <x-nav-link :href="route('tamu.index')" :active="request()->routeIs('tamu.index')">
-                            {{ __('Manajemen Tamu') }}
-                        </x-nav-link>
                         {{-- Manajemen Acara (CRUD) --}}
                         <x-nav-link :href="route('acara.index')" :active="request()->routeIs('acara.index')">
-                            {{ __('Manajemen Acara') }}
+                            {{ __('Master Acara') }}
                         </x-nav-link>
                     @endif
 

@@ -40,20 +40,20 @@ class AcaraController extends Controller
      */
     public function store(Request $request)
     {
-        // 1. Validasi Input
         $request->validate([
             'nama_mempelai' => 'required|string|max:255',
             'waktu_acara' => 'required|date',
             'lokasi' => 'nullable|string',
             'deskripsi' => 'required|string|max:255',
-            'petugas_id' => 'required|exists:petugas,id',
+            // Tambahin unique:acara biar gak error di level database
+            'petugas_id' => 'required|exists:users,id|unique:acara,petugas_id',
+        ], [
+            'petugas_id.unique' => 'Petugas ini sudah bertugas di acara lain!',
         ]);
 
-        // 2. Simpan data
         Acara::create($request->all());
 
         return redirect()->route('acara.index')->with('success', 'Acara baru berhasil ditambahkan!');
-
     }
 
     /**
@@ -61,7 +61,17 @@ class AcaraController extends Controller
      */
     public function show(string $id)
     {
-        //
+        // Ambil data acara beserta tamu dan rsvp-nya
+        $acara = Acara::with(['tamu.rsvp', 'tamu.logCheckins'])->findOrFail($id);
+
+        // Hitung ringkasan statistik buat ditampilin di detail
+        $stats = [
+            'total_tamu' => $acara->tamu->count(),
+            'hadir' => $acara->tamu->filter(fn ($t) => $t->logCheckins->isNotEmpty())->count(),
+            'rsvp_hadir' => $acara->tamu->filter(fn ($t) => optional($t->rsvp)->status_kehadiran == 'Hadir')->count(),
+        ];
+
+        return view('acara.show', compact('acara', 'stats'));
     }
 
     /**

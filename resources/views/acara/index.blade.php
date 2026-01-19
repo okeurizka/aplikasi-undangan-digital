@@ -55,6 +55,10 @@
                                 <td class="py-4 px-4 text-gray-600">{{ $a->lokasi }}</td>
                                 <td class="py-4 px-4 text-center">
                                     <div class="flex justify-center gap-3">
+
+                                        <a href="{{ route('acara.show', $a->id) }}"
+                                            class="text-green-600 font-bold hover:underline">Detail</a>
+
                                         <a href="{{ route('acara.edit', $a->id) }}"
                                             class="text-indigo-600 font-bold hover:underline">Edit</a>
 

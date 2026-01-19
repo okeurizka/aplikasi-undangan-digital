@@ -75,7 +75,7 @@ class TamuController extends Controller
             'acara_id' => $request->acara_id,
         ]);
 
-        return redirect()->route('tamu.index')->with('success', 'Data tamu berhasil ditambahkan!');
+        return redirect()->route('acara.show', $request->acara_id)->with('success', 'Data tamu berhasil ditambahkan!');
     }
 
     /**

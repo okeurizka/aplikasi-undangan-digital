@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Acara;
 use App\Models\LogCheckin; // Untuk mencari Tamu berdasarkan kode unik
 use App\Models\Tamu; // Untuk menyimpan log check-in
-use Carbon\Carbon; // Untuk menampilkan acara aktif di halaman scanner
+// Untuk menampilkan acara aktif di halaman scanner
 use Illuminate\Http\Request; // Untuk mencatat waktu check-in
 
 class CheckinController extends Controller
@@ -34,22 +34,48 @@ class CheckinController extends Controller
             'kode_unik' => 'required',
         ]);
 
+        // 1. Ambil data acara yang ditugaskan ke petugas yang sedang login
+        $acaraPetugas = Acara::where('petugas_id', auth()->id())->first();
+
+        if (! $acaraPetugas) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak ditugaskan di acara manapun!',
+            ], 403);
+        }
+
+        // 2. Cari tamu berdasarkan kode_unik
         $tamu = Tamu::where('kode_unik', $request->kode_unik)->first();
 
         if (! $tamu) {
-            return response()->json(['success' => false, 'message' => 'Tamu tidak terdaftar!'], 404);
+            return response()->json([
+                'success' => false,
+                'message' => 'Tamu tidak terdaftar!',
+            ], 404);
         }
 
+        // 3. LOGIKA DENY: Cek apakah tamu ini milik acara si petugas?
+        if ($tamu->acara_id !== $acaraPetugas->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses Ditolak! Tamu ini terdaftar di acara lain.',
+            ], 403);
+        }
+
+        // 4. Cek apakah sudah pernah check-in
         $sudahCheckin = LogCheckin::where('tamu_id', $tamu->id)->exists();
         if ($sudahCheckin) {
-            return response()->json(['success' => false, 'message' => 'Tamu '.$tamu->nama_tamu.' sudah masuk sebelumnya.'], 400);
+            return response()->json([
+                'success' => false,
+                'message' => 'Tamu '.$tamu->nama_tamu.' sudah masuk sebelumnya.',
+            ], 400);
         }
 
-        // SIMPAN DATA (Sesuaikan sama tabel lo yang nggak punya acara_id)
+        // 5. Berhasil, simpan log
         LogCheckin::create([
             'tamu_id' => $tamu->id,
-            'petugas_id' => auth()->id(), // Ngambil ID petugas/admin yang login
-            'waktu_scan' => Carbon::now(),
+            'petugas_id' => auth()->id(),
+            'waktu_scan' => now(),
         ]);
 
         return response()->json([
